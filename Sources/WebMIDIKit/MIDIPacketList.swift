@@ -13,12 +13,24 @@ extension MIDIPacketList {
     /// we cannot make a copy since that woulnd't copy the whole list
     internal mutating func send(to output: MIDIOutput, offset: Double? = nil) {
 
-        _ = offset.map {
-            // NOTE: AudioGetCurrentHostTime() CoreAudio method is only available on macOS
-            let current = AudioGetCurrentHostTime()
-            let _offset = AudioConvertNanosToHostTime(UInt64($0 * 1000000))
+        if let millisecondOffset = offset {
+            let tickOffset: UInt64
+            let current: UInt64
+            #if os(macOS)
+                current = AudioGetCurrentHostTime()
+                tickOffset = AudioConvertNanosToHostTime(UInt64(millisecondOffset * 1_000_000))
+            #else
+                // see https://developer.apple.com/library/archive/qa/qa1643/_index.html
+                // and https://developer.apple.com/documentation/driverkit/3433733-mach_timebase_info
+                current = mach_absolute_time()
+                var info = mach_timebase_info_data_t()
+                mach_timebase_info(&info)
+                let fraction = Double(info.numer) / Double(info.denom)
+                let nanosecondOffset = millisecondOffset * 1_000_000
+                tickOffset = UInt64(nanosecondOffset / fraction)
+            #endif
 
-            let ts = current + _offset
+            let ts = current + tickOffset
             packet.timeStamp = ts
         }
 
