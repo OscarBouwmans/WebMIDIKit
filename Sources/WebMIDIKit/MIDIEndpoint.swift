@@ -25,26 +25,26 @@ internal class MIDIEndpoint {
     }
 
     final var id: Int {
-        return self[int: kMIDIPropertyUniqueID]
+        return self[int: kMIDIPropertyUniqueID]!
     }
 
     final var manufacturer: String {
-        return self[string: kMIDIPropertyManufacturer]
+        return self[string: kMIDIPropertyManufacturer] ?? ""
     }
 
     final var name: String {
-        return self[string: kMIDIPropertyName]
+        return self[string: kMIDIPropertyName] ?? ""
     }
 
     final var displayName: String {
-        return self[string: kMIDIPropertyDisplayName]
+        return self[string: kMIDIPropertyDisplayName] ?? ""
     }
 
     final var type: MIDIPortType {
         return MIDIPortType(MIDIObjectGetType(id: id))
     }
 
-    final var version: Int {
+    final var version: Int? {
         return self[int: kMIDIPropertyDriverVersion]
     }
 
@@ -57,11 +57,11 @@ internal class MIDIEndpoint {
         OSAssert(MIDIFlushOutput(ref))
     }
 
-    final private subscript(string property: CFString) -> String {
+    final private subscript(string property: CFString) -> String? {
         return MIDIObjectGetStringProperty(ref: ref, property: property)
     }
 
-    final private subscript(int property: CFString) -> Int {
+    final private subscript(int property: CFString) -> Int? {
         return MIDIObjectGetIntProperty(ref: ref, property: property)
     }
 }
@@ -83,17 +83,25 @@ extension MIDIEndpoint : Hashable {
 }
 
 @inline(__always) fileprivate
-func MIDIObjectGetStringProperty(ref: MIDIObjectRef, property: CFString) -> String {
+func MIDIObjectGetStringProperty(ref: MIDIObjectRef, property: CFString) -> String? {
     var string: Unmanaged<CFString>? = nil
-    OSAssert(MIDIObjectGetStringProperty(ref, property, &string))
-    return (string?.takeRetainedValue()) as String? ?? ""
+    let osstatus = MIDIObjectGetStringProperty(ref, property, &string)
+    if (osstatus == kMIDIUnknownProperty) {
+        return nil
+    }
+    OSAssert(osstatus)
+    return (string?.takeRetainedValue()) as String?
 }
 
 
 @inline(__always) fileprivate
-func MIDIObjectGetIntProperty(ref: MIDIObjectRef, property: CFString) -> Int {
+func MIDIObjectGetIntProperty(ref: MIDIObjectRef, property: CFString) -> Int? {
     var val: Int32 = 0
-    OSAssert(MIDIObjectGetIntegerProperty(ref, property, &val))
+    let osstatus = MIDIObjectGetIntegerProperty(ref, property, &val)
+    if (osstatus == kMIDIUnknownProperty) {
+        return nil
+    }
+    OSAssert(osstatus)
     return Int(val)
 }
 
