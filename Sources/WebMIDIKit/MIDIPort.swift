@@ -45,7 +45,7 @@ public class MIDIPort {
     }
 
     /// The version of the port.
-    public final var version: Int {
+    public final var version: Int? {
         return endpoint.version
     }
 
